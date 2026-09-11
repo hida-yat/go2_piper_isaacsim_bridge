@@ -20,6 +20,16 @@ Sim" step here (unlike Gazebo's `spawn_entity.py`) -- the articulation
 already exists in the running Isaac Sim stage; this package just attaches a
 `ros2_control` hardware interface to its existing joint topics.
 
+**Also turn OFF `go2_in_isaacsim`'s "Publish Arm TF" Preference** (under
+**Piper Arm**) before running this. `robot_state_publisher` (started by
+this launch file, from the real Piper URDF) already publishes
+`link1`..`link6` from real `joint_states`; `go2_in_isaacsim` publishing the
+same link names too (from Isaac's own simulation-truth, rooted at an
+unrelated `world`) makes tf2 flicker between the two on every lookup --
+harmless for RViz's robot mesh (barely noticeable), but it corrupts
+anything that integrates over multiple frames, like the RealSense OctoMap
+below (symptom: stray vertical "fin" artifacts that never go away).
+
 ## Setup
 
 ```bash
@@ -48,6 +58,26 @@ ros2 control list_controllers   # all should show "active"
 
 Then Plan & Execute a goal in RViz's Motion Planning panel and confirm the
 arm actually moves in Isaac Sim.
+
+## Obstacle avoidance (RealSense OctoMap)
+
+`piper_with_gripper_moveit/config/sensors_3d.yaml` feeds the wrist-mounted
+D435's point cloud (`go2_in_isaacsim`'s `realsense.py`, topic
+`/realsense/depth/color/points`) into MoveIt's planning scene as an OctoMap,
+via `PointCloudOctomapUpdater` (not `DepthImageOctomapUpdater` -- that one's
+GLX-based self-filter previously crashed `move_group` outright here). No
+launch changes needed -- `MoveItConfigsBuilder` picks up `sensors_3d.yaml`
+automatically.
+
+Check it's working: **MotionPlanning > Scene Objects > Scene Geometry** in
+RViz should show green OctoMap voxels as the camera sees things (may be
+scrolled out of view in a short Displays panel). If voxels look wrong --
+smeared, duplicated at a different orientation than the real scene, or
+accumulating and never clearing as the arm moves -- first check the
+Precondition above (Publish Arm TF must be off); `ros2 run tf2_ros tf2_echo
+world d435_color_optical_frame` should resolve to a stable, non-jumping
+pose. `ros2 service call /clear_octomap std_srvs/srv/Empty` wipes
+accumulated stale data without restarting `move_group`.
 
 ## Known limitations
 
