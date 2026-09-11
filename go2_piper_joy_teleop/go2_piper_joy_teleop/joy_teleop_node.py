@@ -126,7 +126,9 @@ class JoyTeleopNode(Node):
     def _drive_go2(self) -> None:
         twist = Twist()
         twist.linear.x = self._axis(self._param("axis_go2_linear_x")) * self._param("go2_linear_x_scale")
-        twist.linear.y = self._axis(self._param("axis_go2_linear_y")) * self._param("go2_linear_y_scale")
+        # Negated -- same physical left stick X as axis_joint1 below, which
+        # was confirmed backwards live (right/left swapped) on this pad.
+        twist.linear.y = -self._axis(self._param("axis_go2_linear_y")) * self._param("go2_linear_y_scale")
         twist.angular.z = self._axis(self._param("axis_go2_angular_z")) * self._param("go2_angular_z_scale")
         self._cmd_vel_pub.publish(twist)
 
@@ -135,7 +137,8 @@ class JoyTeleopNode(Node):
         speed = self._param("joint_speed")
         modifier = self._button(self._param("button_joint6_modifier"))
 
-        axis1 = self._axis(self._param("axis_joint1"))
+        # Negated -- confirmed backwards live (right/left swapped) on this pad.
+        axis1 = -self._axis(self._param("axis_joint1"))
         if axis1 > deadzone:
             self._joint_angle[0] = max(-2.618, self._joint_angle[0] - speed)
         elif axis1 < -deadzone:
@@ -161,7 +164,9 @@ class JoyTeleopNode(Node):
         elif dpad_y == -1:
             self._joint_angle[4] = min(1.220, self._joint_angle[4] + speed)
 
-        dpad_x = self._axis(self._param("axis_dpad_x"))
+        # Negated -- same left/right reversal as the D-pad's own hat X axis
+        # on this pad.
+        dpad_x = -self._axis(self._param("axis_dpad_x"))
         if dpad_x == 1:
             if modifier:
                 self._joint_angle[5] = max(-2.094, self._joint_angle[5] - speed)
